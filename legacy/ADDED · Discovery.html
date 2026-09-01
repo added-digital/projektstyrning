@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0A0A0A" />
+<meta name="description" content="ADDED Discovery — internt verktyg för uppstartsmöten." />
+<title>ADDED · Discovery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0A0A;
+    --bg-elev: #141414;
+    --bg-input: #1A1A1A;
+    --bg-input-focus: #1F1F1F;
+    --ink: #FFFFFF;
+    --ink-soft: #B8B8B8;
+    --ink-mute: #707070;
+    --ink-dim: #4A4A4A;
+    --line: #242424;
+    --line-soft: #1C1C1C;
+    --line-strong: #2F2F2F;
+    --accent: #0046FE;
+    --accent-hover: #1A5BFF;
+    --accent-soft: rgba(0, 70, 254, 0.12);
+    --success: #00C896;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --t: 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  ::selection { background: var(--accent); color: var(--ink); }
+
+  .app {
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  /* Header */
+  header {
+    padding: 22px 32px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(10, 10, 10, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .header-inner {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .brand { display: flex; align-items: baseline; gap: 16px; }
+  .brand-name { font-size: 14px; font-weight: 500; letter-spacing: 0.02em; color: var(--ink); }
+  .brand-sep { color: var(--ink-dim); font-size: 14px; }
+  .brand-context { font-size: 14px; color: var(--ink-soft); font-weight: 400; }
+
+  .header-actions { display: flex; align-items: center; gap: 20px; }
+
+  .save-indicator {
+    font-size: 12px;
+    color: var(--ink-mute);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .save-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    transition: opacity var(--t);
+  }
+
+  .btn {
+    font-size: 13px;
+    font-family: var(--sans);
+    font-weight: 400;
+    background: transparent;
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    padding: 8px 14px;
+    cursor: pointer;
+    border-radius: 0;
+    transition: all var(--t);
+  }
+
+  .btn:hover {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+
+  .btn-mute {
+    color: var(--ink-mute);
+    border-color: var(--line);
+  }
+
+  .btn-mute:hover {
+    background: transparent;
+    color: var(--ink);
+    border-color: var(--line-strong);
+  }
+
+  /* Main grid */
+  .main {
+    max-width: 1320px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 80px 32px 120px;
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 80px;
+  }
+
+  /* Sidebar */
+  aside {
+    position: sticky;
+    top: 100px;
+    align-self: start;
+  }
+
+  .meta { margin-bottom: 48px; }
+
+  .meta-label {
+    font-size: 12px;
+    color: var(--ink-mute);
+    margin-bottom: 12px;
+    display: block;
+    font-weight: 400;
+  }
+
+  .meta input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--line-strong);
+    padding: 8px 0;
+    font-family: var(--sans);
+    font-size: 15px;
+    color: var(--ink);
+    margin-bottom: 24px;
+    outline: none;
+    transition: border-color var(--t);
+  }
+
+  .meta input:focus { border-bottom-color: var(--accent); }
+  .meta input::placeholder { color: var(--ink-dim); }
+  .meta input[type="date"] { color-scheme: dark; }
+
+  .progress { margin-bottom: 48px; }
+
+  .progress-bar {
+    height: 1px;
+    background: var(--line);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    background: var(--accent);
+    transition: width 400ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--ink-mute);
+  }
+
+  .sections-label {
+    font-size: 12px;
+    color: var(--ink-mute);
+    margin-bottom: 8px;
+  }
+
+  .section-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .section-item {
+    padding: 18px 0;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    transition: opacity var(--t);
+  }
+
+  .section-item:hover .section-title { color: var(--ink); }
+
+  .section-num {
+    font-size: 13px;
+    color: var(--ink-mute);
+    font-variant-numeric: tabular-nums;
+    padding-top: 1px;
+    min-width: 22px;
+    transition: color var(--t);
+  }
+
+  .section-item.active .section-num { color: var(--accent); }
+
+  .section-body {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .section-title {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.3;
+    transition: color var(--t);
+  }
+
+  .section-item.active .section-title { color: var(--ink); }
+
+  .section-count {
+    font-size: 12px;
+    color: var(--ink-mute);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+
+  /* Content */
+  .content { min-width: 0; }
+
+  .section-meta-row {
+    font-size: 13px;
+    color: var(--ink-mute);
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-meta-row .dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  h1.section-heading {
+    font-weight: 400;
+    font-size: clamp(48px, 6vw, 88px);
+    line-height: 0.98;
+    letter-spacing: -0.04em;
+    margin: 0 0 24px;
+    color: var(--ink);
+  }
+
+  .section-subtitle {
+    font-size: 17px;
+    color: var(--ink-soft);
+    margin-bottom: 96px;
+    max-width: 620px;
+    line-height: 1.55;
+    font-weight: 300;
+  }
+
+  .questions { display: flex; flex-direction: column; }
+
+  .question {
+    padding: 56px 0;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 40px;
+    animation: rise 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .question:last-child { border-bottom: 1px solid var(--line); }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .question:nth-child(1) { animation-delay: 40ms; }
+  .question:nth-child(2) { animation-delay: 100ms; }
+  .question:nth-child(3) { animation-delay: 160ms; }
+  .question:nth-child(4) { animation-delay: 220ms; }
+
+  .q-num {
+    font-size: clamp(48px, 5vw, 64px);
+    font-weight: 300;
+    color: var(--ink);
+    line-height: 0.9;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .q-content { min-width: 0; }
+
+  .q-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .q-title {
+    font-weight: 400;
+    font-size: clamp(20px, 2vw, 24px);
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+    margin: 0;
+    flex: 1;
+    color: var(--ink);
+  }
+
+  .q-type-badge {
+    font-size: 11px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    border: 1px solid var(--line-strong);
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .info-btn {
+    background: transparent;
+    border: 1px solid var(--line-strong);
+    color: var(--ink-mute);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all var(--t);
+    padding: 0;
+    margin-top: 4px;
+  }
+
+  .info-btn:hover {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+
+  .info-btn.active {
+    background: var(--accent);
+    color: var(--ink);
+    border-color: var(--accent);
+  }
+
+  .info-panel {
+    margin-bottom: 24px;
+    padding: 18px 20px;
+    background: var(--accent-soft);
+    border-left: 2px solid var(--accent);
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    display: none;
+    animation: fadeIn 200ms ease-out;
+  }
+
+  .info-panel.open { display: block; }
+
+  .info-panel strong { color: var(--ink); font-weight: 500; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 120px;
+    background: var(--bg-input);
+    border: 1px solid var(--line);
+    border-radius: 0;
+    padding: 14px 16px;
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink);
+    resize: vertical;
+    outline: none;
+    transition: border-color var(--t), background var(--t);
+  }
+
+  textarea::placeholder { color: var(--ink-dim); }
+  textarea:hover { border-color: var(--line-strong); }
+
+  textarea:focus {
+    border-color: var(--accent);
+    background: var(--bg-input-focus);
+  }
+
+  /* Chip input */
+  .chip-input {
+    background: var(--bg-input);
+    border: 1px solid var(--line);
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    transition: border-color var(--t), background var(--t);
+    min-height: 56px;
+  }
+
+  .chip-input:hover { border-color: var(--line-strong); }
+
+  .chip-input.focused {
+    border-color: var(--accent);
+    background: var(--bg-input-focus);
+  }
+
+  .chip {
+    background: var(--bg);
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    font-size: 13px;
+    padding: 6px 10px 6px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.2;
+    animation: chipIn 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes chipIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .chip-remove {
+    background: transparent;
+    border: none;
+    color: var(--ink-mute);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--t);
+  }
+
+  .chip-remove:hover { color: var(--ink); }
+
+  .chip-text-input {
+    flex: 1;
+    min-width: 140px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 4px 0;
+  }
+
+  .chip-text-input::placeholder { color: var(--ink-dim); }
+
+  .chip-hint {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--ink-mute);
+  }
+
+  .chip-hint kbd {
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    padding: 1px 6px;
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+
+  /* Section nav */
+  .section-nav {
+    margin-top: 80px;
+    padding-top: 40px;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .nav-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: var(--sans);
+    color: var(--ink-soft);
+    padding: 16px 0;
+    transition: color var(--t);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+  }
+
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .nav-btn:not(:disabled):hover { color: var(--ink); }
+  .nav-btn:not(:disabled):hover .nav-text { color: var(--accent); }
+
+  .nav-btn.next { text-align: right; align-items: flex-end; }
+
+  .nav-hint { font-size: 12px; color: var(--ink-mute); }
+
+  .nav-text {
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    transition: color var(--t);
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 56px 32px 48px;
+  }
+
+  .footer-inner {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 40px;
+    align-items: start;
+  }
+
+  .footer-col { display: flex; flex-direction: column; gap: 4px; }
+  .footer-right { text-align: right; align-items: flex-end; }
+
+  .footer-label { font-size: 12px; color: var(--ink-mute); margin-bottom: 10px; }
+  .footer-val { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+  .footer-mute { color: var(--ink-mute); }
+
+  .footer-link {
+    color: var(--ink);
+    text-decoration: none;
+    transition: color var(--t);
+  }
+
+  .footer-link:hover { color: var(--accent); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: var(--bg);
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 300ms cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 100;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  @media (max-width: 1024px) {
+    .main {
+      grid-template-columns: 1fr;
+      padding: 48px 24px 80px;
+      gap: 56px;
+    }
+    aside { position: static; }
+  }
+
+  @media (max-width: 720px) {
+    header { padding: 16px 20px; }
+    .main { padding: 32px 20px 64px; }
+    footer { padding: 40px 20px 32px; }
+    .header-inner { flex-wrap: wrap; gap: 14px; }
+    .header-actions { gap: 12px; }
+    .btn { padding: 7px 11px; font-size: 12px; }
+    .brand-context { display: none; }
+    .question { grid-template-columns: 1fr; gap: 20px; padding: 40px 0; }
+    .q-num { font-size: 36px; }
+    .section-subtitle { margin-bottom: 56px; }
+    .section-nav { grid-template-columns: 1fr; gap: 20px; }
+    .nav-btn.next { text-align: left; align-items: flex-start; }
+    .footer-inner { grid-template-columns: 1fr 1fr; }
+    .footer-right { grid-column: span 2; text-align: left; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-name">ADDED</span>
+        <span class="brand-sep">/</span>
+        <span class="brand-context">Discovery</span>
+      </div>
+      <div class="header-actions">
+        <div class="save-indicator">
+          <span class="save-dot" id="saveDot"></span>
+          <span id="saveText">Sparat</span>
+        </div>
+        <button class="btn" id="backupBtn" title="Ladda ner all data som JSON-fil">Säkerhetskopiera</button>
+        <button class="btn" id="restoreBtn" title="Läs in en sparad JSON-fil">Återställ</button>
+        <button class="btn" id="exportBtn" title="Kopiera sammanfattning som markdown">Exportera</button>
+        <button class="btn btn-mute" id="resetBtn">Rensa</button>
+      </div>
+      <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" />
+    </div>
+  </header>
+
+  <div class="main">
+    <aside>
+      <div class="meta">
+        <label class="meta-label">Kund</label>
+        <input type="text" id="clientName" placeholder="Kundens namn" />
+        <label class="meta-label">Mötesdatum</label>
+        <input type="date" id="meetingDate" />
+      </div>
+
+      <div class="progress">
+        <label class="meta-label">Framsteg</label>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        <div class="progress-meta">
+          <span id="progressCount">0 / 15</span>
+          <span id="progressPct">0%</span>
+        </div>
+      </div>
+
+      <div class="sections">
+        <div class="sections-label">Sektioner</div>
+        <ul class="section-list" id="sectionList"></ul>
+      </div>
+    </aside>
+
+    <main class="content" id="content"></main>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-col">
+        <span class="footer-label">Studio</span>
+        <span class="footer-val">ADDED Digital Scandinavia</span>
+        <span class="footer-val">Sankt Eriksgatan 46A</span>
+        <span class="footer-val">112 34 Stockholm</span>
+      </div>
+      <div class="footer-col">
+        <span class="footer-label">Verktyg</span>
+        <span class="footer-val">Discovery toolkit</span>
+        <span class="footer-val footer-mute">v1 — Internt</span>
+      </div>
+      <div class="footer-col">
+        <span class="footer-label">Kontakt</span>
+        <span class="footer-val">Hello@added.digital</span>
+        <span class="footer-val">+46 73 330 70 55</span>
+      </div>
+      <div class="footer-col footer-right">
+        <span class="footer-label">© 2026</span>
+        <a class="footer-val footer-link" href="https://www.added.digital" target="_blank" rel="noopener">added.digital ↗</a>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<div class="toast" id="toast">Kopierat till urklipp</div>
+
+<script>
+const sections = [
+  {
+    id: 1,
+    title: "Affärsförståelse",
+    subtitle: "Mål, värde och beslutsstruktur. Det här lägger grunden för varför sajten finns och vad den måste lyckas med.",
+    questions: [
+      {
+        q: "Vad är ert viktigaste affärsmål kommande 12 månader, och hur ska sajten bidra till det?",
+        type: "text",
+        why: "Förankrar hela projektet i affären istället för i estetik. Utan det här svaret kan vi inte motivera ett enda designbeslut senare.",
+        placeholder: "Skriv eller klistra in svar..."
+      },
+      {
+        q: "Vad är värdet på en kvalificerad lead för er – och vilken typ av lead vill ni ha mer respektive mindre av?",
+        type: "text",
+        why: "Få byråer frågar om leadvärde. Svaret styr hur mycket konverteringsoptimering är värt – och frågan om vilka leads de inte vill ha öppnar oftast en djupare strategidiskussion.",
+        placeholder: "Skriv eller klistra in svar..."
+      },
+      {
+        q: "Hur skiljer ni er från era närmaste konkurrenter, med era egna ord?",
+        type: "text",
+        why: "Testar hur tydlig kundens positionering faktiskt är. Vagt svar är en signal att vi antingen behöver hjälpa dem skärpa det eller flagga det som en risk.",
+        placeholder: "Skriv eller klistra in svar..."
+      },
+      {
+        q: "Vem fattar slutgiltigt beslut om designen, och vilka fler måste vara med och tycka till?",
+        type: "chips",
+        why: "Räddar projekt. Om en VD eller delägare dyker upp sent med starka åsikter spricker tidplanen. Få reda på beslutsstrukturen direkt.",
+        placeholder: "T.ex. \"Anna Svensson — VD (beslut)\""
+      }
+    ]
+  },
+  {
+    id: 2,
+    title: "Målgrupp och beslutsresa",
+    subtitle: "Vem klickar, vem beslutar, och vad behöver hända däremellan.",
+    questions: [
+      {
+        q: "Vem är den typiska personen som tar första kontakten med er via sajten – roll, ansvar och vad de försöker lösa?",
+        type: "chips",
+        why: "Tvingar fram konkretion. Är det en marknadschef som scoutar, en VD som beslutar eller en assistent som researchar? Det styr ton, djup och informationstäthet.",
+        placeholder: "T.ex. \"Marknadschef, scoutar leverantörer\""
+      },
+      {
+        q: "Vilka andra personer är inblandade i beslutet att anlita er, och vad behöver de övertygas om?",
+        type: "chips",
+        why: "I B2B tas beslut sällan av en person. Den som besöker sajten behöver ofta material att övertyga internt med – sajten ska fungera för både utforskaren och det interna säljjobbet.",
+        placeholder: "T.ex. \"CFO — vill se ROI-beräkning\""
+      },
+      {
+        q: "Vad gör en besökare oftast precis innan de landar på er sajt – googlar de er, jämför de leverantörer, eller kommer de via rekommendation?",
+        type: "text",
+        why: "Avgör hur mycket sajten behöver sälja in jämfört med bekräfta. Rekommenderad besökare behöver trovärdighetsbevis; jämförande besökare behöver tydlig differentiering.",
+        placeholder: "Skriv eller klistra in svar..."
+      },
+      {
+        q: "Vilka invändningar eller tveksamheter brukar dyka upp i säljsamtal som ni önskar att sajten kunde hantera innan mötet?",
+        type: "text",
+        why: "Guldgruvan. Säljarnas vanligaste invändningar är ofta de bästa rubrikerna och sektionerna på sajten – men ingen frågar säljarna.",
+        placeholder: "Skriv eller klistra in svar..."
+      }
+    ]
+  },
+  {
+    id: 3,
+    title: "Konkurrens och inspiration",
+    subtitle: "Vart vill ni positionera er, och vad ska vi medvetet undvika att likna.",
+    questions: [
+      {
+        q: "Vilka 3–5 konkurrenter vill ni att vi benchmarkar mot, och varför just dem – är de förebilder, jämförelser eller motsatser?",
+        type: "chips",
+        why: "Förhindrar att vi benchmarkar mot fel konkurrenter. Genom att fråga varför får vi reda på om kunden tänker positionering eller bara stirrar uppåt.",
+        placeholder: "T.ex. \"konkurrent.se — förebild för tonalitet\""
+      },
+      {
+        q: "Vilka sajter (inom eller utanför er bransch) inspirerar er, och vad specifikt är det ni reagerar på – känsla, struktur, tonalitet eller något annat?",
+        type: "chips",
+        why: "Separerar det överförbara (rytm, tonalitet, whitespace) från det varumärkesbundna (specifika färger, typografi). Utan den här frågan riskerar vi en design som ser ut som en kopia.",
+        placeholder: "T.ex. \"linear.app — whitespace och rytm\""
+      },
+      {
+        q: "Finns det något ni medvetet vill undvika att likna, och vad i så fall?",
+        type: "chips",
+        why: "Nästan ingen ställer den här frågan. Vad kunden vill undvika är ofta tydligare och mer användbart än vad de vill efterlikna.",
+        placeholder: "T.ex. \"stockfoto-stilen från konkurrent.se\""
+      },
+      {
+        q: "Vad tror ni att era kunder jämför er med när de utvärderar – är det andra byråer/konsulter, en intern lösning, eller att inte göra något alls?",
+        type: "text",
+        why: "För B2B är den verkliga konkurrensen ofta inte göra något eller lösa det internt – inte en annan byrå. Det påverkar copy och argumentation mer än vilken färg konkurrenterna har på CTA-knappen.",
+        placeholder: "Skriv eller klistra in svar..."
+      }
+    ]
+  },
+  {
+    id: 4,
+    title: "Strategiska designprinciper",
+    subtitle: "Översätter affärs- och målgruppsinsikter till tydliga ledstjärnor för designen.",
+    questions: [
+      {
+        q: "Om besökaren bara läser en sak på sajten – vad ska de då ta med sig?",
+        type: "text",
+        why: "Tvingar fram prioritering. B2B-sajter vill ofta säga allt till alla och slutar säga ingenting till någon. Svaret blir den röda tråden för informationsarkitekturen.",
+        placeholder: "Skriv eller klistra in svar..."
+      },
+      {
+        q: "Vilken känsla ska en besökare lämna sajten med, och vilken handling ska de helst ha utfört?",
+        type: "text",
+        why: "Separerar känsla från handling. Sajten kan väcka rätt känsla men missa konverteringen, eller tvärtom. Båda blir ledstjärnor att designa och mäta mot.",
+        placeholder: "Skriv eller klistra in svar..."
+      },
+      {
+        q: "Vad är viktigast om vi tvingas välja: att synas tydligt i sökmotorer, att konvertera fler av de som redan hittar er, eller att höja kvaliteten på de leads som kommer in?",
+        type: "text",
+        why: "Alla kunder vill ha allt, men dessa mål kräver ibland motstridiga val. Att tvinga fram prioritering tidigt gör att vi kan fatta tydliga beslut senare utan att fastna.",
+        placeholder: "Skriv eller klistra in svar..."
+      }
+    ]
+  }
+];
+
+const STORAGE_KEY = "added_discovery_v2";
+let state = {
+  client: "",
+  date: "",
+  activeSection: 1,
+  answers: {} // text: string, chips: string[]
+};
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      state = { ...state, ...parsed };
+    }
+  } catch (e) { console.warn(e); }
+}
+
+let saveTimer;
+function save() {
+  clearTimeout(saveTimer);
+  document.getElementById("saveText").textContent = "Sparar";
+  document.getElementById("saveDot").style.opacity = "0.3";
+  saveTimer = setTimeout(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    document.getElementById("saveText").textContent = "Sparat";
+    document.getElementById("saveDot").style.opacity = "1";
+  }, 400);
+}
+
+const totalQuestions = sections.reduce((acc, s) => acc + s.questions.length, 0);
+
+function isAnswered(sectionId, qIndex) {
+  const s = sections.find(x => x.id === sectionId);
+  const q = s.questions[qIndex];
+  const key = `${sectionId}-${qIndex}`;
+  const val = state.answers[key];
+  if (q.type === "chips") {
+    return Array.isArray(val) && val.length > 0;
+  }
+  return typeof val === "string" && val.trim().length > 0;
+}
+
+function countAnswered() {
+  let count = 0;
+  sections.forEach(s => {
+    s.questions.forEach((_, i) => {
+      if (isAnswered(s.id, i)) count++;
+    });
+  });
+  return count;
+}
+
+function countSectionAnswered(sectionId) {
+  const s = sections.find(x => x.id === sectionId);
+  let count = 0;
+  s.questions.forEach((_, i) => {
+    if (isAnswered(sectionId, i)) count++;
+  });
+  return count;
+}
+
+function renderSidebar() {
+  const list = document.getElementById("sectionList");
+  list.innerHTML = "";
+  sections.forEach(s => {
+    const li = document.createElement("li");
+    li.className = "section-item" + (state.activeSection === s.id ? " active" : "");
+    const answered = countSectionAnswered(s.id);
+    li.innerHTML = `
+      <span class="section-num">${String(s.id).padStart(2, "0")}</span>
+      <div class="section-body">
+        <span class="section-title">${s.title}</span>
+        <span class="section-count">${answered}/${s.questions.length}</span>
+      </div>
+    `;
+    li.addEventListener("click", () => {
+      state.activeSection = s.id;
+      save();
+      renderAll();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    list.appendChild(li);
+  });
+}
+
+function renderProgress() {
+  const answered = countAnswered();
+  const pct = Math.round((answered / totalQuestions) * 100);
+  document.getElementById("progressFill").style.width = pct + "%";
+  document.getElementById("progressCount").textContent = `${answered} / ${totalQuestions}`;
+  document.getElementById("progressPct").textContent = pct + "%";
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function renderField(s, q, qIndex) {
+  const key = `${s.id}-${qIndex}`;
+  if (q.type === "chips") {
+    const chips = Array.isArray(state.answers[key]) ? state.answers[key] : [];
+    const chipsHtml = chips.map((chip, idx) => `
+      <span class="chip" data-idx="${idx}">
+        ${escapeHtml(chip)}
+        <button type="button" class="chip-remove" data-action="remove-chip" data-key="${key}" data-idx="${idx}" aria-label="Ta bort">×</button>
+      </span>
+    `).join("");
+    return `
+      <div class="chip-input" data-key="${key}">
+        ${chipsHtml}
+        <input
+          type="text"
+          class="chip-text-input"
+          data-key="${key}"
+          data-action="chip-input"
+          placeholder="${chips.length === 0 ? escapeHtml(q.placeholder) : "Lägg till..."}"
+        />
+      </div>
+      <div class="chip-hint">Tryck <kbd>Enter</kbd> för att lägga till. <kbd>Backspace</kbd> i tomt fält tar bort föregående.</div>
+    `;
+  }
+  const val = state.answers[key] || "";
+  return `<textarea data-key="${key}" placeholder="${escapeHtml(q.placeholder)}">${escapeHtml(val)}</textarea>`;
+}
+
+function renderContent() {
+  const s = sections.find(x => x.id === state.activeSection);
+  const c = document.getElementById("content");
+
+  const questionsHtml = s.questions.map((q, i) => {
+    const typeBadge = q.type === "chips"
+      ? `<span class="q-type-badge">Flera svar</span>`
+      : "";
+    return `
+      <div class="question">
+        <div class="q-num">${String(i + 1).padStart(2, "0")}</div>
+        <div class="q-content">
+          <div class="q-header">
+            <h2 class="q-title">${q.q}</h2>
+            ${typeBadge}
+            <button class="info-btn" data-info="${s.id}-${i}" aria-label="Visa motivering">?</button>
+          </div>
+          <div class="info-panel" id="info-${s.id}-${i}"><strong>Varför vi frågar.</strong> ${q.why}</div>
+          ${renderField(s, q, i)}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  const prevSection = sections.find(x => x.id === s.id - 1);
+  const nextSection = sections.find(x => x.id === s.id + 1);
+
+  c.innerHTML = `
+    <div class="section-meta-row">
+      <span class="dot"></span>
+      <span>Del ${String(s.id).padStart(2, "0")} / ${String(sections.length).padStart(2, "0")}</span>
+    </div>
+    <h1 class="section-heading">${s.title}</h1>
+    <p class="section-subtitle">${s.subtitle}</p>
+    <div class="questions">${questionsHtml}</div>
+    <div class="section-nav">
+      <button class="nav-btn prev" id="prevBtn" ${!prevSection ? "disabled" : ""}>
+        <span class="nav-hint">← Föregående</span>
+        <span class="nav-text">${prevSection ? prevSection.title : "—"}</span>
+      </button>
+      <button class="nav-btn next" id="nextBtn" ${!nextSection ? "disabled" : ""}>
+        <span class="nav-hint">Nästa →</span>
+        <span class="nav-text">${nextSection ? nextSection.title : "—"}</span>
+      </button>
+    </div>
+  `;
+
+  bindFieldHandlers();
+
+  c.querySelectorAll(".info-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const panel = document.getElementById(`info-${btn.dataset.info}`);
+      const isOpen = panel.classList.toggle("open");
+      btn.classList.toggle("active", isOpen);
+    });
+  });
+
+  const prev = document.getElementById("prevBtn");
+  const next = document.getElementById("nextBtn");
+  if (prev && prevSection) prev.addEventListener("click", () => {
+    state.activeSection = prevSection.id;
+    save();
+    renderAll();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  if (next && nextSection) next.addEventListener("click", () => {
+    state.activeSection = nextSection.id;
+    save();
+    renderAll();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+
+function bindFieldHandlers() {
+  // Textareas
+  document.querySelectorAll("textarea[data-key]").forEach(ta => {
+    ta.addEventListener("input", () => {
+      state.answers[ta.dataset.key] = ta.value;
+      save();
+      renderProgress();
+      renderSidebar();
+    });
+    autoGrow(ta);
+    ta.addEventListener("input", () => autoGrow(ta));
+  });
+
+  // Chip inputs
+  document.querySelectorAll(".chip-text-input").forEach(input => {
+    const wrapper = input.closest(".chip-input");
+    const key = input.dataset.key;
+
+    input.addEventListener("focus", () => wrapper.classList.add("focused"));
+    input.addEventListener("blur", () => {
+      wrapper.classList.remove("focused");
+      // Commit any pending value on blur
+      const val = input.value.trim();
+      if (val) {
+        addChip(key, val);
+        input.value = "";
+        renderContent();
+      }
+    });
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const val = input.value.trim();
+        if (val) {
+          addChip(key, val);
+          input.value = "";
+          renderContent();
+          // Re-focus on the chip input after re-render
+          setTimeout(() => {
+            const newInput = document.querySelector(`.chip-text-input[data-key="${key}"]`);
+            if (newInput) newInput.focus();
+          }, 0);
+        }
+      } else if (e.key === "Backspace" && input.value === "") {
+        const chips = state.answers[key] || [];
+        if (chips.length > 0) {
+          removeChip(key, chips.length - 1);
+          renderContent();
+          setTimeout(() => {
+            const newInput = document.querySelector(`.chip-text-input[data-key="${key}"]`);
+            if (newInput) newInput.focus();
+          }, 0);
+        }
+      }
+    });
+  });
+
+  // Chip remove buttons
+  document.querySelectorAll('[data-action="remove-chip"]').forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const key = btn.dataset.key;
+      const idx = parseInt(btn.dataset.idx, 10);
+      removeChip(key, idx);
+      renderContent();
+    });
+  });
+}
+
+function addChip(key, value) {
+  if (!Array.isArray(state.answers[key])) {
+    state.answers[key] = [];
+  }
+  state.answers[key].push(value);
+  save();
+  renderProgress();
+  renderSidebar();
+}
+
+function removeChip(key, idx) {
+  if (!Array.isArray(state.answers[key])) return;
+  state.answers[key].splice(idx, 1);
+  save();
+  renderProgress();
+  renderSidebar();
+}
+
+function autoGrow(ta) {
+  ta.style.height = "auto";
+  ta.style.height = Math.max(120, ta.scrollHeight + 2) + "px";
+}
+
+function renderAll() {
+  renderSidebar();
+  renderProgress();
+  renderContent();
+}
+
+function bindMeta() {
+  const nameInput = document.getElementById("clientName");
+  const dateInput = document.getElementById("meetingDate");
+  nameInput.value = state.client;
+  dateInput.value = state.date;
+  nameInput.addEventListener("input", () => { state.client = nameInput.value; save(); });
+  dateInput.addEventListener("input", () => { state.date = dateInput.value; save(); });
+}
+
+function exportMarkdown() {
+  let md = `# ADDED — Discovery\n\n`;
+  md += `**Kund:** ${state.client || "—"}  \n`;
+  md += `**Mötesdatum:** ${state.date || "—"}  \n\n`;
+  md += `---\n\n`;
+  sections.forEach(s => {
+    md += `## ${String(s.id).padStart(2, "0")} · ${s.title}\n\n`;
+    md += `*${s.subtitle}*\n\n`;
+    s.questions.forEach((q, i) => {
+      const key = `${s.id}-${i}`;
+      const val = state.answers[key];
+      md += `### ${String(i + 1).padStart(2, "0")}. ${q.q}\n\n`;
+      if (q.type === "chips") {
+        if (Array.isArray(val) && val.length > 0) {
+          val.forEach(item => { md += `- ${item}\n`; });
+          md += `\n`;
+        } else {
+          md += `_(inget angivet)_\n\n`;
+        }
+      } else {
+        md += `${val || "_(inget angivet)_"}\n\n`;
+      }
+    });
+    md += `\n`;
+  });
+  navigator.clipboard.writeText(md).then(() => {
+    showToast("Kopierat till urklipp");
+  }).catch(() => {
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `added-discovery-${state.client || "kund"}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Nedladdad");
+  });
+}
+
+function showToast(text) {
+  const t = document.getElementById("toast");
+  t.textContent = text;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function resetAll() {
+  if (!confirm("Är du säker på att du vill rensa allt och börja om med en ny kund?\n\nTips: säkerhetskopiera först om du vill kunna återställa.")) return;
+  state = { client: "", date: "", activeSection: 1, answers: {} };
+  localStorage.removeItem(STORAGE_KEY);
+  bindMeta();
+  renderAll();
+  showToast("Rensat");
+}
+
+function backup() {
+  const payload = {
+    version: 1,
+    app: "added-discovery",
+    exportedAt: new Date().toISOString(),
+    data: state
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const clientSlug = (state.client || "kund").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  a.href = url;
+  a.download = `added-discovery-${clientSlug}-${dateStr}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("Säkerhetskopia nedladdad");
+}
+
+function restore(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      const data = parsed.data || parsed; // tolerera om någon laddar upp bara data-objektet
+      if (!data || typeof data !== "object" || !("answers" in data)) {
+        throw new Error("Ogiltig fil");
+      }
+      const hasExistingData = state.client || state.date || Object.keys(state.answers).length > 0;
+      if (hasExistingData) {
+        if (!confirm("Det finns redan data i appen. Vill du ersätta den med innehållet från filen?\n\n(Säkerhetskopiera först om du vill behålla nuvarande data.)")) {
+          return;
+        }
+      }
+      state = {
+        client: data.client || "",
+        date: data.date || "",
+        activeSection: data.activeSection || 1,
+        answers: data.answers || {}
+      };
+      save();
+      bindMeta();
+      renderAll();
+      showToast("Återställt från fil");
+    } catch (err) {
+      alert("Kunde inte läsa filen. Är det en säkerhetskopia från det här verktyget?");
+      console.error(err);
+    }
+  };
+  reader.onerror = () => {
+    alert("Kunde inte läsa filen.");
+  };
+  reader.readAsText(file);
+}
+
+load();
+bindMeta();
+renderAll();
+document.getElementById("exportBtn").addEventListener("click", exportMarkdown);
+document.getElementById("resetBtn").addEventListener("click", resetAll);
+document.getElementById("backupBtn").addEventListener("click", backup);
+document.getElementById("restoreBtn").addEventListener("click", () => {
+  document.getElementById("restoreFile").click();
+});
+document.getElementById("restoreFile").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) restore(file);
+  e.target.value = ""; // tillåt att ladda upp samma fil igen senare
+});
+</script>
+</body>
+</html>

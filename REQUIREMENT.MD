@@ -1,0 +1,1 @@
+Focus on making things dynamic and connected. Alignment is very important in this.wq
