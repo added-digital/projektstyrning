@@ -1,5 +1,4 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import { supabaseAdmin } from "./supabase";
 import {
   allSectionIds,
   ChecklistCategory,
@@ -342,9 +341,19 @@ function ensureChecklistCategory(item: Partial<ChecklistItem>): ChecklistItem {
   };
 }
 
-const DATA_DIR = path.join(process.cwd(), "data");
+/**
+ * Raden i customers-tabellen. `doc` håller hela kunddokumentet
+ * ({ projects, activeProjectId }) — normalisering och legacy-migrering
+ * körs vid läsning, precis som när dokumenten låg som JSON-filer.
+ */
+interface CustomerRow {
+  slug: string;
+  client: string;
+  doc: { projects?: Partial<Project>[]; activeProjectId?: string | null };
+  updated_at: string;
+}
 
-/** Convert a free-text customer name into a safe, deterministic filename slug. */
+/** Convert a free-text customer name into a safe, deterministic slug. */
 export function slugify(name: string): string {
   return (
     name
@@ -363,22 +372,11 @@ export function slugify(name: string): string {
   );
 }
 
-/** Reject anything that could escape the data directory. */
+/** Reject anything that doesn't look like a slug we generated ourselves. */
 function assertSafeSlug(slug: string): void {
-  if (!slug || slug.includes("/") || slug.includes("\\") || slug.includes("..") || slug.startsWith(".")) {
+  if (!slug || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
     throw new Error(`Invalid slug: ${slug}`);
   }
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
-    throw new Error(`Invalid slug: ${slug}`);
-  }
-}
-
-async function ensureDataDir(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-}
-
-function fileFor(slug: string): string {
-  return path.join(DATA_DIR, `${slug}.json`);
 }
 
 export interface CustomerSummary {
@@ -389,29 +387,18 @@ export interface CustomerSummary {
 }
 
 export async function listCustomers(): Promise<CustomerSummary[]> {
-  await ensureDataDir();
-  const entries = await fs.readdir(DATA_DIR);
-  const summaries: CustomerSummary[] = [];
+  const { data, error } = await supabaseAdmin()
+    .from("customers")
+    .select("slug, client, doc, updated_at")
+    .order("updated_at", { ascending: false });
+  if (error) throw new Error(`listCustomers: ${error.message}`);
 
-  for (const entry of entries) {
-    if (!entry.endsWith(".json")) continue;
-    const slug = entry.replace(/\.json$/, "");
-    try {
-      const data = await readCustomer(slug);
-      const stat = await fs.stat(fileFor(slug));
-      summaries.push({
-        slug,
-        client: data.client || slug,
-        projectCount: data.projects.length,
-        updatedAt: data.updatedAt || stat.mtime.toISOString(),
-      });
-    } catch {
-      // skip unreadable files
-    }
-  }
-
-  summaries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  return summaries;
+  return (data as CustomerRow[]).map((row) => ({
+    slug: row.slug,
+    client: row.client || row.slug,
+    projectCount: Array.isArray(row.doc?.projects) ? row.doc.projects.length : 0,
+    updatedAt: row.updated_at,
+  }));
 }
 
 export interface DataVersion {
@@ -421,25 +408,28 @@ export interface DataVersion {
 }
 
 /**
- * Lightweight fingerprint for the JSON-backed customer data.
- * Used by the client to notice file edits made outside the browser.
+ * Lightweight fingerprint for the customer data. Used by the client to
+ * notice writes made outside the browser (Codex, andra flikar, andra
+ * personer). Samma form som filversionen: `antal:senaste-ändring`.
  */
 export async function getDataVersion(): Promise<DataVersion> {
-  await ensureDataDir();
-  const entries = await fs.readdir(DATA_DIR);
-  let fileCount = 0;
-  let latestMtimeMs = 0;
+  const db = supabaseAdmin();
+  const [countRes, latestRes] = await Promise.all([
+    db.from("customers").select("slug", { count: "exact", head: true }),
+    db
+      .from("customers")
+      .select("updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  if (countRes.error) throw new Error(`getDataVersion: ${countRes.error.message}`);
+  if (latestRes.error) throw new Error(`getDataVersion: ${latestRes.error.message}`);
 
-  for (const entry of entries) {
-    if (!entry.endsWith(".json")) continue;
-    try {
-      const stat = await fs.stat(path.join(DATA_DIR, entry));
-      fileCount++;
-      latestMtimeMs = Math.max(latestMtimeMs, stat.mtimeMs);
-    } catch {
-      // Ignore files that disappear while scanning.
-    }
-  }
+  const fileCount = countRes.count ?? 0;
+  const latestMtimeMs = latestRes.data
+    ? new Date((latestRes.data as { updated_at: string }).updated_at).getTime()
+    : 0;
 
   return {
     version: `${fileCount}:${latestMtimeMs}`,
@@ -579,57 +569,69 @@ function migrateIfNeeded(raw: LegacyShape): CustomerData {
 
 export async function readCustomer(slug: string): Promise<CustomerData> {
   assertSafeSlug(slug);
-  await ensureDataDir();
-  try {
-    const raw = await fs.readFile(fileFor(slug), "utf8");
-    const parsed = JSON.parse(raw) as LegacyShape;
-    return migrateIfNeeded(parsed);
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      return emptyCustomer();
-    }
-    throw err;
-  }
+  const { data, error } = await supabaseAdmin()
+    .from("customers")
+    .select("slug, client, doc, updated_at")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw new Error(`readCustomer(${slug}): ${error.message}`);
+  if (!data) return emptyCustomer();
+
+  const row = data as CustomerRow;
+  // Samma migrerings-/normaliseringsväg som när dokumentet låg i en fil.
+  return migrateIfNeeded({
+    client: row.client,
+    projects: row.doc?.projects,
+    activeProjectId: row.doc?.activeProjectId,
+    updatedAt: row.updated_at,
+  } as LegacyShape);
 }
 
 export async function writeCustomer(slug: string, data: CustomerData): Promise<CustomerData> {
   assertSafeSlug(slug);
-  await ensureDataDir();
   const projects = (data.projects ?? []).map((p, idx) => normalizeProject(p, idx));
-  const payload: CustomerData = {
+  const activeProjectId =
+    data.activeProjectId && projects.some((p) => p.id === data.activeProjectId)
+      ? data.activeProjectId
+      : projects[0]?.id ?? null;
+
+  // Upsert på slug — updated_at sätts av databasen (default vid insert,
+  // trigger vid update), aldrig härifrån.
+  const { data: saved, error } = await supabaseAdmin()
+    .from("customers")
+    .upsert(
+      { slug, client: data.client ?? "", doc: { projects, activeProjectId } },
+      { onConflict: "slug" },
+    )
+    .select("updated_at")
+    .single();
+  if (error) throw new Error(`writeCustomer(${slug}): ${error.message}`);
+
+  return {
     client: data.client ?? "",
     projects,
-    activeProjectId:
-      data.activeProjectId && projects.some((p) => p.id === data.activeProjectId)
-        ? data.activeProjectId
-        : projects[0]?.id ?? null,
-    updatedAt: new Date().toISOString(),
+    activeProjectId,
+    updatedAt: (saved as { updated_at: string }).updated_at,
   };
-  // Atomic write via tmp file rename — avoids partial writes if the process dies mid-save.
-  const tmp = fileFor(`${slug}.tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  const final = fileFor(slug);
-  await fs.writeFile(tmp, JSON.stringify(payload, null, 2), "utf8");
-  await fs.rename(tmp, final);
-  return payload;
 }
 
 export async function deleteCustomer(slug: string): Promise<boolean> {
   assertSafeSlug(slug);
-  try {
-    await fs.unlink(fileFor(slug));
-    return true;
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return false;
-    throw err;
-  }
+  const { data, error } = await supabaseAdmin()
+    .from("customers")
+    .delete()
+    .eq("slug", slug)
+    .select("slug");
+  if (error) throw new Error(`deleteCustomer(${slug}): ${error.message}`);
+  return (data?.length ?? 0) > 0;
 }
 
 export async function customerExists(slug: string): Promise<boolean> {
   assertSafeSlug(slug);
-  try {
-    await fs.access(fileFor(slug));
-    return true;
-  } catch {
-    return false;
-  }
+  const { count, error } = await supabaseAdmin()
+    .from("customers")
+    .select("slug", { count: "exact", head: true })
+    .eq("slug", slug);
+  if (error) throw new Error(`customerExists(${slug}): ${error.message}`);
+  return (count ?? 0) > 0;
 }
