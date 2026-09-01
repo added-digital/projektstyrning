@@ -72,6 +72,7 @@ import Link from "next/link";
 import {
   fetchAllCustomers,
   fetchDataVersion,
+  subscribeToCustomerChanges,
   saveCustomer,
 } from "@/lib/customersClient";
 import { ProjectPanel } from "@/components/ProjectPanel";
@@ -294,44 +295,18 @@ export default function PlaneringPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-refresh när JSON-filerna ändras på disk, t.ex. efter en edit via
-  // Codex. Pollingen är lättviktig och laddar bara om full kunddata när
-  // filversionen faktiskt ändrats.
+  // Auto-refresh via Supabase Realtime: varje write i customers-tabellen
+  // (annan flik, kollega, Codex via API:t) triggar en tyst omladdning.
+  // Samma spärrar som pollingen hade: hoppa över medan en egen save är
+  // pågående eller debouncad, så lokala ändringar inte skrivs över.
   useEffect(() => {
-    let cancelled = false;
-    let inFlight = false;
-
-    async function pollDataVersion() {
-      if (cancelled || inFlight) return;
+    const unsubscribe = subscribeToCustomerChanges(() => {
       if (!bootstrappedRef.current) return;
       if (saveTimers.current.size > 0) return;
       if (saveStatus === "saving") return;
-
-      inFlight = true;
-      try {
-        const next = await fetchDataVersion();
-        if (!next) return;
-        const prev = dataVersionRef.current;
-        if (!prev) {
-          dataVersionRef.current = next.version;
-          return;
-        }
-        if (next.version !== prev) {
-          dataVersionRef.current = next.version;
-          await loadCustomers("silent");
-        }
-      } catch {
-        // Best-effort: nästa poll försöker igen.
-      } finally {
-        inFlight = false;
-      }
-    }
-
-    const interval = window.setInterval(pollDataVersion, 2000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
+      void loadCustomers("silent");
+    });
+    return unsubscribe;
   }, [loadCustomers, saveStatus]);
 
   // Auto-refresh när fönstret återfår fokus. Skippas om vi har en pågående

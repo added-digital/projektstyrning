@@ -25,6 +25,11 @@ export function MainNav() {
           </Link>
         );
       })}
+      <form action="/auth/signout" method="post" className="main-nav-signout-form" style={{ marginLeft: "auto" }}>
+        <button type="submit" className="main-nav-signout">
+          Logga ut
+        </button>
+      </form>
     </nav>
   );
 }

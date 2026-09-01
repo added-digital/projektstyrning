@@ -12,6 +12,7 @@ import {
 } from "@/lib/sections";
 import {
   fetchAllCustomers,
+  subscribeToCustomerChanges,
   fetchDataVersion,
   saveCustomer,
 } from "@/lib/customersClient";
@@ -85,37 +86,18 @@ export default function NotiserPage() {
     load("initial");
   }, [load]);
 
-  // Auto-uppdatering när JSON-filerna ändras på disk (Codex-edits).
+  // Auto-uppdatering via Supabase Realtime (annan flik, kollega, Codex
+  // via API:t) + vid fokus. Egen pågående save hoppar över omladdningen.
   useEffect(() => {
-    let cancelled = false;
-    let inFlight = false;
-    async function poll() {
-      if (cancelled || inFlight || savingRef.current) return;
-      inFlight = true;
-      try {
-        const next = await fetchDataVersion();
-        if (!next) return;
-        const prev = dataVersionRef.current;
-        if (!prev) {
-          dataVersionRef.current = next.version;
-          return;
-        }
-        if (next.version !== prev) {
-          dataVersionRef.current = next.version;
-          await load("silent");
-        }
-      } finally {
-        inFlight = false;
-      }
-    }
-    const interval = window.setInterval(poll, 2000);
+    const unsubscribe = subscribeToCustomerChanges(() => {
+      if (!savingRef.current) void load("silent");
+    });
     function onFocus() {
       if (!savingRef.current) load("silent");
     }
     window.addEventListener("focus", onFocus);
     return () => {
-      cancelled = true;
-      window.clearInterval(interval);
+      unsubscribe();
       window.removeEventListener("focus", onFocus);
     };
   }, [load]);
