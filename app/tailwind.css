@@ -1,0 +1,68 @@
+/*
+ * Tailwind + shadcn-tokens. Laddas EFTER globals.css. Preflight är av
+ * (tailwind.config.js), så inget här skriver över befintlig styling —
+ * tokens nedan mappar shadcn:s namn på appens egna mörka palett
+ * (--bg, --bg-elev, --ink, --line …) så nya vyer ser ut som resten.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 225 17% 5%;            /* --bg        #0A0B0E */
+    --foreground: 240 11% 97%;           /* --ink       #F5F5F7 */
+    --card: 223 15% 9%;                  /* --bg-elev   #14161B */
+    --card-foreground: 240 11% 97%;
+    --popover: 223 15% 9%;
+    --popover-foreground: 240 11% 97%;
+    --primary: 240 11% 97%;              /* --accent    #F5F5F7 */
+    --primary-foreground: 225 17% 5%;
+    --secondary: 225 13% 12%;            /* --bg-input  #1A1C22 */
+    --secondary-foreground: 240 11% 97%;
+    --muted: 225 13% 12%;
+    --muted-foreground: 240 3% 55%;      /* --ink-mute  #88898F */
+    --accent: 225 13% 14%;               /* --bg-input-focus */
+    --accent-foreground: 240 11% 97%;
+    --destructive: 8 55% 55%;
+    --destructive-foreground: 240 11% 97%;
+    --border: 227 11% 16%;               /* --line      #24262D */
+    --input: 227 11% 16%;
+    --ring: 240 11% 70%;
+    --radius: 0.5rem;
+
+    /* Serier i graferna — en färg per medarbetare i fast ordning.
+       #3987e5 #d95926 #199e70 #c98500 #d55181: validerade mot #0A0B0E
+       (ljushetsband, CVD-separation ≥ 8, kontrast ≥ 3:1). Byt inte
+       ordning eller nyans utan att köra valideringen igen.
+       Appen är enbart mörk: bklits mörka värden ligger direkt på :root,
+       ingen .dark-klass. Serietokens är hela färger (bklit läser dem som
+       de är), övriga shadcn-tokens är HSL-tripplar. */
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-3: #199e70;
+    --chart-4: #c98500;
+    --chart-5: #d55181;
+    --chart-background: #14161B;
+    --chart-foreground: #C7C7CD;
+    --chart-foreground-muted: #88898F;
+    --chart-line-primary: var(--chart-1);
+    --chart-line-secondary: var(--chart-2);
+    --chart-crosshair: #50525A;
+    --chart-grid: #24262D;
+    --chart-brush-border: var(--chart-grid);
+    --chart-tooltip-background: rgba(20, 22, 27, 0.92);
+    --chart-tooltip-foreground: #F5F5F7;
+    --chart-tooltip-muted: #88898F;
+    --chart-marker-background: #1A1C22;
+    --chart-marker-border: #353740;
+    --chart-marker-foreground: #F5F5F7;
+    --chart-label: #C7C7CD;
+    --chart-scale-01: #1A1C22;
+    --chart-scale-02: #24262D;
+    --chart-scale-03: #353740;
+    --chart-scale-04: #50525A;
+    --chart-scale-05: #88898F;
+    --chart-scale-pattern-color: #14161B;
+  }
+}

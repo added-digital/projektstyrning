@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./tailwind.css";
 import { Toast } from "@/components/Toast";
 
 export const metadata: Metadata = {

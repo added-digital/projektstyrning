@@ -5376,3 +5376,16 @@ button.team-alloc-bar-label.is-unset {
   padding: 4px 8px;
 }
 .main-nav-signout:hover { color: var(--ink-soft); }
+
+/* ---------- MainNav (delad topp-navigering) ---------- */
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+.main-nav-link.active {
+  color: var(--ink);
+  border-color: var(--line-strong);
+  background: var(--bg-input);
+}

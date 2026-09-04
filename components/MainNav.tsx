@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const links = [
   { href: "/", label: "Projekt" },
   { href: "/projektplanering", label: "Projektplanering" },
+  { href: "/tid", label: "Tid" },
 ];
 
 export function MainNav() {
@@ -19,7 +20,8 @@ export function MainNav() {
           <Link
             key={l.href}
             href={l.href}
-            className={`main-nav-link ${active ? "active" : ""}`}
+            className={`btn btn-mute toolbar-btn main-nav-link ${active ? "active" : ""}`}
+            aria-current={active ? "page" : undefined}
           >
             {l.label}
           </Link>
