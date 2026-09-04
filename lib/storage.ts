@@ -1,16 +1,20 @@
 import { supabaseAdmin } from "./supabase";
 import {
   allSectionIds,
+  CapacityReservation,
   ChecklistCategory,
   ChecklistItem,
   CustomerData,
   defaultChecklist,
   emptyCustomer,
+  HourAllocation,
   isoWeekToDateRange,
   newProject,
   PhaseComment,
   phaseOrder,
   PhaseType,
+  PricingType,
+  pricingTypeOrder,
   Project,
   ProjectAllocation,
   ProjectPhase,
@@ -244,6 +248,107 @@ function normalizeAllocations(
       };
     })
     .filter((a): a is ProjectAllocation => a !== null);
+}
+
+const PRICING_TYPES = new Set<string>(pricingTypeOrder);
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function normalizeCapacityReservations(raw: unknown): CapacityReservation[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item, idx): CapacityReservation | null => {
+      if (!item || typeof item !== "object") return null;
+      const v = item as Partial<CapacityReservation>;
+      const minHours = Math.max(0, Number(v.minHours));
+      const maxHours = Math.max(minHours, Number(v.maxHours));
+      const probability = Math.min(1, Math.max(0, Number(v.probability)));
+      if (![minHours, maxHours, probability].every(Number.isFinite)) return null;
+      if (!v.startDate || !ISO_DATE_RE.test(v.startDate)) return null;
+      const endDate =
+        v.endDate && ISO_DATE_RE.test(v.endDate) && v.endDate >= v.startDate
+          ? v.endDate
+          : v.startDate;
+      return {
+        id: v.id || `cr-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+        member:
+          typeof v.member === "string" && TEAM_MEMBERS_SET.has(v.member)
+            ? (v.member as TeamMember)
+            : teamMembers[0],
+        minHours,
+        maxHours,
+        probability,
+        startDate: v.startDate,
+        endDate,
+        comment: typeof v.comment === "string" ? v.comment : "",
+      };
+    })
+    .filter((v): v is CapacityReservation => v !== null);
+}
+
+function normalizePricingType(raw: unknown): PricingType | undefined {
+  return typeof raw === "string" && PRICING_TYPES.has(raw)
+    ? (raw as PricingType)
+    : undefined;
+}
+
+/**
+ * Timallokeringar (beläggningsvyn). Förlåtande på samma sätt som
+ * uppgifterna: saknat id/createdAt fylls i. Poster utan giltig person,
+ * giltiga datum eller ett tal i `hours` kastas — de går inte att rita.
+ */
+function normalizeHourAllocations(raw: unknown): HourAllocation[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((a, idx): HourAllocation | null => {
+      if (!a || typeof a !== "object") return null;
+      const v = a as Partial<HourAllocation>;
+      const member = typeof v.member === "string" ? v.member : "";
+      if (!TEAM_MEMBERS_SET.has(member)) return null;
+      const hours = Number(v.hours);
+      const isRange = v.estimateMode === "range";
+      const lowHours = Number(v.lowHours);
+      const likelyHours = Number(v.likelyHours);
+      const highHours = Number(v.highHours);
+      const rangeOk =
+        [lowHours, likelyHours, highHours].every(Number.isFinite) &&
+        lowHours >= 0 && lowHours <= likelyHours && likelyHours <= highHours;
+      if ((!Number.isFinite(hours) || hours < 0) && !(isRange && rangeOk)) return null;
+      const startDate =
+        typeof v.startDate === "string" && ISO_DATE_RE.test(v.startDate)
+          ? v.startDate
+          : "";
+      let endDate =
+        typeof v.endDate === "string" && ISO_DATE_RE.test(v.endDate)
+          ? v.endDate
+          : "";
+      if (!startDate) return null;
+      if (!endDate || endDate < startDate) endDate = startDate;
+      return {
+        id:
+          typeof v.id === "string" && v.id
+            ? v.id
+            : `ha-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+        member: member as TeamMember,
+        hours: isRange && rangeOk ? (lowHours + 4 * likelyHours + highHours) / 6 : hours,
+        ...(isRange && rangeOk
+          ? { estimateMode: "range" as const, lowHours, likelyHours, highHours }
+          : { estimateMode: "fixed" as const }),
+        // Saknat läge = totalt: poster skapade innan `mode` fanns var alltid
+        // totala timmar, och det är det säkra valet för handskriven JSON.
+        mode: v.mode === "per_day" ? "per_day" : "total",
+        startDate,
+        endDate,
+        comment: typeof v.comment === "string" ? v.comment : "",
+        ...(typeof v.createdBy === "string" && v.createdBy
+          ? { createdBy: v.createdBy }
+          : {}),
+        createdAt:
+          typeof v.createdAt === "string" && v.createdAt
+            ? v.createdAt
+            : new Date().toISOString(),
+      };
+    })
+    .filter((a): a is HourAllocation => a !== null);
 }
 
 function normalizeWeeklyNotes(raw: unknown): WeeklyNote[] {
@@ -498,6 +603,11 @@ function normalizeProject(p: Partial<Project> & { todos?: unknown }, idx: number
       p.endDate,
     ),
     tasks: normalizeTasks(p.tasks),
+    // Beläggningsvyn. De äldre fälten ovan (phases/allocations/tasks)
+    // behålls medvetet så att inget i databasen tappas vid sparning.
+    capacityReservations: normalizeCapacityReservations(p.capacityReservations),
+    pricingType: normalizePricingType(p.pricingType),
+    hourAllocations: normalizeHourAllocations(p.hourAllocations),
     updatedAt: p.updatedAt,
   };
 }

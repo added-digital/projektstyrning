@@ -474,6 +474,121 @@ export const newAllocation = (
   endDate,
 });
 
+/**
+ * Osäker efterfrågan som väntas uppstå någon gång under perioden, till
+ * exempel support inom ett SLA. Den har en ansvarig person men räknas inte
+ * som bokad tid förrän arbetet faktiskt planeras.
+ */
+export interface CapacityReservation {
+  id: string;
+  /** Ansvarig för behovet, utan att tiden är hårt allokerad. */
+  member: TeamMember;
+  minHours: number;
+  maxHours: number;
+  /** 0–1. Används för den viktade prognosen mellan min och max. */
+  probability: number;
+  startDate: string;
+  endDate: string;
+  comment: string;
+}
+
+export const newCapacityReservation = (
+  startDate: string,
+  endDate: string,
+  member: TeamMember = teamMembers[0],
+): CapacityReservation => ({
+  id: `cr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+  member,
+  minHours: 1,
+  maxHours: 4,
+  probability: 0.5,
+  startDate,
+  endDate,
+  comment: "SLA / löpande behov",
+});
+
+// ---- Beläggning: projekttyp + timallokeringar ---------------------------
+
+/**
+ * Prissättningsmodell för ett projekt. Alla tre delar samma inputstruktur
+ * (timmar + datumintervall + kommentar) och samma beräkningslogik i
+ * beläggningsvyn — typen är i det här steget bara en etikett.
+ */
+export type PricingType = "avtalade_timmar" | "fastpris" | "hogt_lagt";
+
+export const pricingTypeOrder: readonly PricingType[] = [
+  "avtalade_timmar",
+  "fastpris",
+  "hogt_lagt",
+] as const;
+
+export const pricingTypeLabel: Record<PricingType, string> = {
+  avtalade_timmar: "Timmar avtalade",
+  fastpris: "Fastpris",
+  hogt_lagt: "Högt och lågt räknat",
+};
+
+/**
+ * Hur `hours` på en timallokering ska tolkas:
+ *  - "per_day": timmar per vardag — samma antal varje vardag i intervallet
+ *    (standard i popupen).
+ *  - "total": totalt antal timmar som fördelas jämnt över vardagarna.
+ */
+export type HourAllocationMode = "per_day" | "total";
+
+export const hourAllocationModeLabel: Record<HourAllocationMode, string> = {
+  per_day: "Per vardag",
+  total: "Totalt",
+};
+
+/**
+ * Planerad tid för en person på ett projekt över ett datumintervall.
+ * `mode` avgör om `hours` gäller per vardag eller totalt; helger räknas
+ * aldrig in (se `lib/belaggning.ts`).
+ *
+ * Skiljer sig från `ProjectAllocation` (timmar per vecka i tidslinjen) —
+ * den här modellen driver beläggningsdiagrammet på startsidan.
+ */
+export interface HourAllocation {
+  id: string;
+  member: TeamMember;
+  /** Timmar — per vardag eller totalt beroende på `mode`. */
+  hours: number;
+  /** Fast tid eller ett trepunktsestimat. `hours` är PERT-prognosen vid range. */
+  estimateMode?: "fixed" | "range";
+  lowHours?: number;
+  likelyHours?: number;
+  highHours?: number;
+  mode: HourAllocationMode;
+  /** ISO YYYY-MM-DD. */
+  startDate: string;
+  /** ISO YYYY-MM-DD (inklusive). */
+  endDate: string;
+  comment: string;
+  /** Vem som skapade allokeringen. Tomt tills verktyget har inloggning. */
+  createdBy?: string;
+  /** ISO-datetime. */
+  createdAt: string;
+}
+
+export const newHourAllocation = (
+  member: TeamMember,
+  hours: number,
+  startDate: string,
+  endDate: string,
+  comment = "",
+  mode: HourAllocationMode = "per_day",
+): HourAllocation => ({
+  id: `ha-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+  member,
+  hours,
+  mode,
+  startDate,
+  endDate,
+  comment,
+  createdAt: new Date().toISOString(),
+});
+
 export interface Project {
   id: string;
   name: string;
@@ -495,8 +610,15 @@ export interface Project {
   weeklyNotes?: WeeklyNote[];
   /** Beläggning per teammedlem (timmar/vecka under projektets löptid). */
   allocations?: ProjectAllocation[];
+  /** Ansvarig men ännu ej tidsatt kapacitetsrisk. Påverkar prognos, inte bokad tid. */
+  capacityReservations?: CapacityReservation[];
   /** Kortsiktiga uppgifter per person — visas på /notiser. */
   tasks?: ProjectTask[];
+  /** Prissättningsmodell. Sätts första gången en timallokering skapas. */
+  pricingType?: PricingType;
+  /** Planerade timmar per person (totalt över intervall) — driver
+   *  beläggningsdiagrammet på startsidan. */
+  hourAllocations?: HourAllocation[];
   updatedAt?: string;
 }
 
@@ -521,10 +643,8 @@ export const newProject = (
     activeSection: enabled[0] ?? 1,
     answers: {},
     checklist: defaultChecklist.map((c) => ({ ...c })),
-    phases: [],
-    weeklyNotes: [],
-    allocations: [],
-    tasks: [],
+    capacityReservations: [],
+    hourAllocations: [],
   };
 };
 
