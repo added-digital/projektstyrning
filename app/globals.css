@@ -5382,7 +5382,14 @@ button.team-alloc-bar-label.is-unset {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* I root-toolbaren står navet efter "Ny kund". Får plats på en rad på breda
+   skärmar (≳1650px); annars radbryts det och högerställs under knappen. */
+.page-toolbar-inner > .btn + .main-nav {
+  flex: 0 1 auto;
+  margin-left: var(--space-2);
 }
 .main-nav-link.active {
   color: var(--ink);

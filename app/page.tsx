@@ -76,10 +76,10 @@ import {
   saveCustomer,
 } from "@/lib/customersClient";
 import { ProjectPanel } from "@/components/ProjectPanel";
+import { MainNav } from "@/components/MainNav";
 import { DatePicker } from "@/components/DatePicker";
 import { showToast } from "@/components/Toast";
 import {
-  Bell,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -1186,10 +1186,6 @@ export default function PlaneringPage() {
 
           <div className="toolbar-spacer" />
 
-          <Link href="/notiser" className="btn btn-mute toolbar-btn">
-            <Bell size={14} strokeWidth={2.25} aria-hidden /> Notiser
-          </Link>
-
           <button
             type="button"
             className="btn toolbar-btn"
@@ -1197,6 +1193,8 @@ export default function PlaneringPage() {
           >
             <Plus size={14} strokeWidth={2.25} aria-hidden /> Ny kund
           </button>
+
+          <MainNav />
         </div>
       </div>
 
