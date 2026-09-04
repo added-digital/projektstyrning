@@ -19,7 +19,6 @@ import {
   rangeFor,
   TARGET_HOURS_PER_DAY,
   todayISO,
-  type OccupancyRange,
   type OccupancySource,
 } from "@/lib/belaggning";
 import { fetchBelaggning, type BelaggningData } from "@/lib/belaggningClient";
@@ -40,10 +39,8 @@ import { showToast } from "@/components/Toast";
  */
 
 const LABEL_W = 200;
-const DAY_W_PAST = 22;
-const DAY_W_FUTURE = 36;
-const DAY_W_YEAR_PAST = 12;
-const DAY_W_YEAR_FUTURE = 18;
+/** Samma kolumnbredd för alla dagar — förflutna dagar smalnar inte av. */
+const DAY_W = 36;
 const ROW_H = 30;
 const PERSON_ROW_H = 36;
 
@@ -133,8 +130,8 @@ export default function BelaggningPersonerPage() {
 
   const today = useMemo(() => todayISO(), []);
   const year = Number(today.slice(0, 4));
-  const [range, setRange] = useState<OccupancyRange>("default");
-  const { from, to } = useMemo(() => rangeFor(range, today, year), [range, today, year]);
+  // En enda vy: hela året, med dagens kolumn centrerad vid laddning.
+  const { from, to } = useMemo(() => rangeFor("year", today, year), [today, year]);
   const [series, setSeries] = useState<BelaggningData | null>(null);
   const [seriesError, setSeriesError] = useState<string | null>(null);
   const [popup, setPopup] = useState<{
@@ -311,8 +308,7 @@ export default function BelaggningPersonerPage() {
     if (!el || loading || todayCol >= days.length) return;
     const key = `${from}:${to}`;
     if (scrolledRef.current === key) return;
-    const pastDayW = range === "year" ? DAY_W_YEAR_PAST : DAY_W_PAST;
-    const xBeforeToday = Math.min(todayCol, days.length) * pastDayW;
+    const xBeforeToday = Math.min(todayCol, days.length) * DAY_W;
 
     // Etikettkolumnen är sticky och tar LABEL_W av viewporten; centrera
     // dagens kolumn i den yta som återstår. Elementet kan sakna bredd när
@@ -330,11 +326,9 @@ export default function BelaggningPersonerPage() {
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [loading, todayCol, days.length, from, to, range]);
+  }, [loading, todayCol, days.length, from, to]);
 
-  const pastDayW = range === "year" ? DAY_W_YEAR_PAST : DAY_W_PAST;
-  const futureDayW = range === "year" ? DAY_W_YEAR_FUTURE : DAY_W_FUTURE;
-  const dayWidths = days.map((_, i) => i < todayCol ? pastDayW : futureDayW);
+  const dayWidths = days.map(() => DAY_W);
   const daysWidth = dayWidths.reduce((sum, width) => sum + width, 0);
   const cssVars = {
     ["--label-w" as string]: `${LABEL_W}px`,
@@ -364,25 +358,6 @@ export default function BelaggningPersonerPage() {
           </button>
 
           <h1 className="bpp-title">Per person</h1>
-
-          <div className="filter-group" role="group" aria-label="Period">
-            <button
-              type="button"
-              className={`filter-pill ${range === "default" ? "on" : ""}`}
-              aria-pressed={range === "default"}
-              onClick={() => setRange("default")}
-            >
-              3 månader
-            </button>
-            <button
-              type="button"
-              className={`filter-pill ${range === "year" ? "on" : ""}`}
-              aria-pressed={range === "year"}
-              onClick={() => setRange("year")}
-            >
-              Hela {year}
-            </button>
-          </div>
 
           <div className="toolbar-spacer" />
           {visibleReserve > 0 && <span className="bpp-reserve-total" title="Ansvarig reserv som ännu inte räknas som bokad tid">Reserv ≈{formatHoursSv(visibleReserve)}h</span>}
