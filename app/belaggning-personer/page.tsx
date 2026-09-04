@@ -133,8 +133,24 @@ export default function BelaggningPersonerPage() {
 
   const today = useMemo(() => todayISO(), []);
   const year = Number(today.slice(0, 4));
-  // En enda vy: hela året, med dagens kolumn centrerad vid laddning.
-  const { from, to } = useMemo(() => rangeFor("year", today, year), [today, year]);
+  // Hela året med dagens kolumn centrerad — eller, med "Dölj förflutet",
+  // från idag och framåt. Valet sparas per webbläsare.
+  const [hidePast, setHidePast] = useState(false);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem("bpp-hide-past") === "1") setHidePast(true);
+    } catch {}
+  }, []);
+  function toggleHidePast() {
+    setHidePast((v) => {
+      try { window.localStorage.setItem("bpp-hide-past", v ? "0" : "1"); } catch {}
+      return !v;
+    });
+  }
+  const { from, to } = useMemo(() => {
+    const full = rangeFor("year", today, year);
+    return hidePast ? { from: today, to: full.to } : full;
+  }, [today, year, hidePast]);
   const [series, setSeries] = useState<BelaggningData | null>(null);
   const [seriesError, setSeriesError] = useState<string | null>(null);
   const [popup, setPopup] = useState<{
@@ -362,6 +378,16 @@ export default function BelaggningPersonerPage() {
           </button>
 
           <h1 className="bpp-title">Per person</h1>
+
+          <button
+            type="button"
+            className={`filter-pill ${hidePast ? "on" : ""}`}
+            aria-pressed={hidePast}
+            onClick={toggleHidePast}
+            title={hidePast ? "Visa även förflutna dagar" : "Visa bara från idag och framåt"}
+          >
+            Dölj förflutet
+          </button>
 
           <div className="toolbar-spacer" />
           {visibleReserve > 0 && <span className="bpp-reserve-total" title="Ansvarig reserv som ännu inte räknas som bokad tid">Reserv ≈{formatHoursSv(visibleReserve)}h</span>}
