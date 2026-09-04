@@ -16,6 +16,7 @@ import {
 import { getHistoricalSource } from "@/lib/belaggningHistorik";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 /** Max antal dagar per anrop — skyddar mot orimliga intervall. */
 const MAX_DAYS = 800;

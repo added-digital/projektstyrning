@@ -26,6 +26,13 @@ export function supabaseAdmin(): SupabaseClient {
   }
   client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      // Nexts fetch-patch kan annars lägga PostgREST-svar i Data Cache på
+      // Vercel — som dessutom överlever deployer. Sågs skarpt: /api/belaggning
+      // serverade en kundlista från 13:31 medan databasen var på 14:00.
+      // Databasen är sanningen; ingen Supabase-läsning får cacheas.
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    },
   });
   return client;
 }

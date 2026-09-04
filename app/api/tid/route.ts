@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 const PERIODS = new Set(["week", "month", "year"]);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;

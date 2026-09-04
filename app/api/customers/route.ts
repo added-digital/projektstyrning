@@ -3,6 +3,7 @@ import { listCustomers, slugify, writeCustomer } from "@/lib/storage";
 import type { CustomerData } from "@/lib/sections";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export async function GET() {
   const customers = await listCustomers();

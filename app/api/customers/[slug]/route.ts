@@ -9,6 +9,7 @@ import {
 import type { CustomerData } from "@/lib/sections";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 interface Ctx {
   params: { slug: string };
