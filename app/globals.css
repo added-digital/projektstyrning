@@ -5965,3 +5965,45 @@ button.team-alloc-bar-label.is-unset {
   border-color: var(--line-strong);
   background: var(--bg-input);
 }
+
+/* ---------- Beläggning: drag/resize av staplar ---------- */
+.bpp-bar,
+.bpp-reserve-bar {
+  position: relative;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.bpp-bar.is-dragging,
+.bpp-reserve-bar.is-dragging {
+  cursor: grabbing;
+  box-shadow: 0 0 0 1px var(--member-color, var(--ink-soft));
+  z-index: 2;
+}
+.bpp-bar-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+}
+.bpp-bar-handle.left { left: -1px; }
+.bpp-bar-handle.right { right: -1px; }
+.bpp-bar-handle::after {
+  content: "";
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.bpp-bar:hover .bpp-bar-handle::after,
+.bpp-reserve-bar:hover .bpp-bar-handle::after,
+.is-dragging .bpp-bar-handle::after { opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) {
+  .bpp-bar-handle::after { transition: none; }
+}

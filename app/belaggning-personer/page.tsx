@@ -27,6 +27,7 @@ import { MONTHS_SV } from "@/lib/timeline";
 import { DISPLAY_MEMBERS, MEMBER_COLORS } from "@/lib/teamVisuals";
 import { BelaggningAllocPopover } from "@/components/BelaggningAllocPopover";
 import { MainNav } from "@/components/MainNav";
+import { useBarDrag, type ColRange } from "@/lib/useBarDrag";
 import { showToast } from "@/components/Toast";
 
 /**
@@ -505,9 +506,24 @@ export default function BelaggningPersonerPage() {
                         <span className="bpp-project-name">{row.customer}</span>
                       </button>
                       <div className="bpp-cells bpp-cells-bars">
-                        <button type="button" className="bpp-reserve-bar" style={{ gridColumn: `${cols.start + 1} / ${cols.end + 2}` }} onClick={() => setReservePopup(row)} title={`${row.reservation.comment}\nAnsvarig: ${m}\nEj bokad · prognos ${formatHoursSv(expected)}h · max ${formatHoursSv(row.reservation.maxHours)}h`}>
+                        <DraggableBar
+                          cols={cols}
+                          maxCol={days.length - 1}
+                          scrollEl={scrollRef.current}
+                          className="bpp-reserve-bar"
+                          title={`${row.reservation.comment}\nAnsvarig: ${m}\nEj bokad · prognos ${formatHoursSv(expected)}h · max ${formatHoursSv(row.reservation.maxHours)}h\nDra för att flytta, dra i kanten för att ändra längd`}
+                          onOpen={() => setReservePopup(row)}
+                          onCommit={(next) => {
+                            saveCapacityReservation(row.customerSlug, row.projectId, {
+                              ...row.reservation,
+                              startDate: days[next.start],
+                              endDate: days[next.end],
+                            });
+                            showToast(`Reserv ${row.customer}: ${days[next.start]} – ${days[next.end]}`);
+                          }}
+                        >
                           {formatHoursSv(row.reservation.minHours)}–{formatHoursSv(row.reservation.maxHours)}h · ≈{formatHoursSv(expected)}h
-                        </button>
+                        </DraggableBar>
                       </div>
                     </div>;
                   })}
@@ -542,28 +558,38 @@ export default function BelaggningPersonerPage() {
                           {lane.map((a) => {
                             const cols = colsFor(a);
                             if (!cols) return null;
+                            const project = customers[r.customerSlug]?.projects.find((p) => p.id === r.projectId);
                             return (
-                              <button
-                                type="button"
+                              <DraggableBar
                                 key={a.id}
+                                cols={cols}
+                                maxCol={days.length - 1}
+                                scrollEl={scrollRef.current}
                                 className={`bpp-bar ${a.estimateMode === "range" ? "is-range" : ""}`}
                                 style={{
-                                  gridColumn: `${cols.start + 1} / ${cols.end + 2}`,
                                   background: `${color}14`,
                                   borderColor: `${color}80`,
                                   ["--member-color" as string]: color,
                                 }}
                                 title={`${r.customer} · ${r.projectName}\n${barLabel(a)} · ${a.startDate} – ${a.endDate}${
                                   a.comment ? `\n${a.comment}` : ""
-                                }`}
-                                onClick={() =>
-                                  setPopup({ person: m, editId: a.id })
-                                }
+                                }\nDra för att flytta, dra i kanten för att ändra längd`}
+                                onOpen={() => setPopup({ person: m, editId: a.id })}
+                                onCommit={(next) => {
+                                  saveHourAllocation({
+                                    customerSlug: r.customerSlug,
+                                    projectId: r.projectId,
+                                    pricingType: project?.pricingType ?? "avtalade_timmar",
+                                    allocation: { ...a, startDate: days[next.start], endDate: days[next.end] },
+                                    replace: { customerSlug: r.customerSlug, projectId: r.projectId, allocationId: a.id },
+                                  });
+                                  showToast(`${r.customer}: ${days[next.start]} – ${days[next.end]}`);
+                                }}
                               >
                                 <span className="bpp-bar-text">
                                   {barLabel(a)}
                                 </span>
-                              </button>
+                              </DraggableBar>
                             );
                           })}
                         </div>
@@ -706,4 +732,59 @@ function CapacityReservationPopover({ customers, initial, defaultStart, defaultE
       <div className="bpp-reserve-actions">{onRemove && <button type="button" className="danger" onClick={onRemove}>Ta bort</button>}<span /><button type="button" className="primary" disabled={!slug || !projectId || !draft.startDate || draft.endDate < draft.startDate} onClick={() => onSave(slug, projectId, draft)}>Spara</button></div>
     </div>
   </>;
+}
+
+
+/**
+ * Stapel som kan dras (flytta) eller dras i kanterna (ändra längd).
+ * Ett klick utan förflyttning öppnar popupen som förut; under draget
+ * ritas stapeln på förhandsvisningens kolumner och sparas när den släpps.
+ */
+function DraggableBar({
+  cols,
+  maxCol,
+  scrollEl,
+  className,
+  style,
+  title,
+  onOpen,
+  onCommit,
+  children,
+}: {
+  cols: ColRange;
+  maxCol: number;
+  scrollEl: HTMLElement | null;
+  className: string;
+  style?: React.CSSProperties;
+  title: string;
+  onOpen: () => void;
+  onCommit: (next: ColRange) => void;
+  children: React.ReactNode;
+}) {
+  const drag = useBarDrag({ cols, dayWidth: DAY_W, maxCol, scrollEl, onCommit });
+  const shown = drag.preview ?? cols;
+  return (
+    <button
+      type="button"
+      className={`${className} ${drag.dragging ? "is-dragging" : ""}`}
+      style={{ ...style, gridColumn: `${shown.start + 1} / ${shown.end + 2}` }}
+      title={title}
+      onPointerDown={(e) => drag.startDrag(e, "move")}
+      onClick={() => {
+        if (!drag.consumeClick()) onOpen();
+      }}
+    >
+      <span
+        className="bpp-bar-handle left"
+        aria-hidden
+        onPointerDown={(e) => drag.startDrag(e, "resize-left")}
+      />
+      {children}
+      <span
+        className="bpp-bar-handle right"
+        aria-hidden
+        onPointerDown={(e) => drag.startDrag(e, "resize-right")}
+      />
+    </button>
+  );
 }
