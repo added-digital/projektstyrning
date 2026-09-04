@@ -6007,3 +6007,12 @@ button.team-alloc-bar-label.is-unset {
 @media (prefers-reduced-motion: reduce) {
   .bpp-bar-handle::after { transition: none; }
 }
+
+/* Upprepade timmar: ett block per tillfälle, streckad kant + ingen drag-cursor */
+.bpp-bar.is-repeat {
+  cursor: pointer;
+  border-style: dotted;
+  padding: 0 4px;
+  justify-content: center;
+}
+.bpp-bar.is-repeat .bpp-bar-handle { display: none; }

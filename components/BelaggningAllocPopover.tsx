@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pencil, Trash2, X } from "lucide-react";
 import {
-  hourAllocationModeLabel,
   newHourAllocation,
   pricingTypeLabel,
   pricingTypeOrder,
@@ -11,12 +10,15 @@ import {
   type CustomerData,
   type HourAllocation,
   type HourAllocationMode,
+  repeatUnitLabel,
+  type RepeatUnit,
   type PricingType,
   type TeamMember,
 } from "@/lib/sections";
 import {
   addDays,
   allocationTotalHours,
+  recurrenceDates,
   countWeekdays,
   todayISO,
 } from "@/lib/belaggning";
@@ -65,6 +67,7 @@ export function BelaggningAllocPopover({
   person,
   initialDate,
   editAllocationId,
+  initialRepeat,
   customers,
   onClose,
   onSave,
@@ -74,6 +77,8 @@ export function BelaggningAllocPopover({
   initialDate?: string;
   /** Öppna direkt i redigeringsläge för den här posten. */
   editAllocationId?: string;
+  /** Förvald upprepning (från knappen "Upprepade timmar"). */
+  initialRepeat?: RepeatUnit;
   customers: Record<string, CustomerData>;
   onClose: () => void;
   onSave: (draft: HourAllocationDraft) => void;
@@ -86,12 +91,13 @@ export function BelaggningAllocPopover({
   const [pricingType, setPricingType] = useState<PricingType | "">("");
   const [hoursDraft, setHoursDraft] = useState("");
   const [lowDraft, setLowDraft] = useState("");
-  const [likelyDraft, setLikelyDraft] = useState("");
   const [highDraft, setHighDraft] = useState("");
-  /** Per vardag är standard; "Totalt" fördelar summan över vardagarna. */
+  /** Per vardag. Bara äldre poster kan ha "total" — de behåller sitt läge vid redigering. */
   const [mode, setMode] = useState<HourAllocationMode>("per_day");
+  const [repeat, setRepeat] = useState<RepeatUnit | "">(initialRepeat ?? "");
+  const yearEnd = `${(initialDate ?? today).slice(0, 4)}-12-31`;
   const [startDate, setStartDate] = useState(initialDate ?? today);
-  const [endDate, setEndDate] = useState(addDays(initialDate ?? today, 4));
+  const [endDate, setEndDate] = useState(initialRepeat ? yearEnd : addDays(initialDate ?? today, 4));
   const [comment, setComment] = useState("");
   /** Posten som redigeras, eller null när formuläret skapar en ny. */
   const [editing, setEditing] = useState<ExistingRow | null>(null);
@@ -157,9 +163,9 @@ export function BelaggningAllocPopover({
     setProjectId(row.projectId);
     setHoursDraft(formatHoursSv(a.hours));
     setLowDraft(a.lowHours == null ? "" : formatHoursSv(a.lowHours));
-    setLikelyDraft(a.likelyHours == null ? "" : formatHoursSv(a.likelyHours));
     setHighDraft(a.highHours == null ? "" : formatHoursSv(a.highHours));
     setMode(a.mode);
+    setRepeat(a.repeat ?? "");
     setStartDate(a.startDate);
     setEndDate(a.endDate);
     setComment(a.comment);
@@ -172,11 +178,11 @@ export function BelaggningAllocPopover({
     setPricingType("");
     setHoursDraft("");
     setLowDraft("");
-    setLikelyDraft("");
     setHighDraft("");
     setMode("per_day");
+    setRepeat(initialRepeat ?? "");
     setStartDate(initialDate ?? today);
-    setEndDate(addDays(initialDate ?? today, 4));
+    setEndDate(initialRepeat ? yearEnd : addDays(initialDate ?? today, 4));
     setComment("");
   }
 
@@ -193,15 +199,22 @@ export function BelaggningAllocPopover({
 
   const hours = Number(hoursDraft.replace(",", "."));
   const low = Number(lowDraft.replace(",", "."));
-  const likely = Number(likelyDraft.replace(",", "."));
   const high = Number(highDraft.replace(",", "."));
+  // Utan eget "troligt"-värde: mitten av spannet, så PERT blir medelvärdet.
+  const likely = (low + high) / 2;
   const isRange = pricingType === "hogt_lagt";
-  const rangeOk = [low, likely, high].every(Number.isFinite) &&
-    low >= 0 && low <= likely && likely <= high && high > 0;
+  const rangeOk = [low, high].every(Number.isFinite) && low >= 0 && low <= high && high > 0;
   const forecastHours = isRange && rangeOk ? pertEstimate(low, likely, high) : hours;
   const hoursOk = isRange ? rangeOk : Number.isFinite(hours) && hours > 0;
   const datesOk = Boolean(startDate && endDate && endDate >= startDate);
   const weekdays = datesOk ? countWeekdays(startDate, endDate) : 0;
+  const occurrences = repeat && datesOk
+    ? recurrenceDates(
+        { id: "", member, hours: 1, mode: "per_day", repeat, startDate, endDate, comment: "", createdAt: "" },
+        startDate,
+        endDate,
+      ).length
+    : 0;
   const perDay =
     hoursOk && datesOk
       ? mode === "per_day"
@@ -210,7 +223,7 @@ export function BelaggningAllocPopover({
           ? forecastHours / weekdays
           : forecastHours
       : 0;
-  const total = mode === "per_day" ? forecastHours * weekdays : forecastHours;
+  const total = repeat ? forecastHours * occurrences : mode === "per_day" ? forecastHours * weekdays : forecastHours;
   const canSave =
     Boolean(customerSlug && projectId && pricingType) && hoursOk && datesOk;
 
@@ -222,8 +235,9 @@ export function BelaggningAllocPopover({
       startDate,
       endDate,
       comment.trim(),
-      mode,
+      repeat ? "per_day" : mode,
     );
+    if (repeat) fresh.repeat = repeat;
     if (isRange) {
       fresh.estimateMode = "range";
       fresh.lowHours = low;
@@ -277,7 +291,7 @@ export function BelaggningAllocPopover({
             <span className="alloc-popover-project">
               {editing
                 ? `${editing.customer} · ${editing.projectName}`
-                : "Per vardag eller totalt över perioden — helger räknas inte in"}
+                : repeat ? "Samma antal timmar varje vecka eller månad" : "Timmar per vardag — helger räknas inte in"}
             </span>
           </div>
           <button
@@ -385,46 +399,50 @@ export function BelaggningAllocPopover({
           </div>
 
           <div className="alloc-field">
+            <label className="meta-label" htmlFor="bp-repeat">
+              Upprepa
+            </label>
+            <select
+              id="bp-repeat"
+              className="panel-text-input"
+              value={repeat}
+              onChange={(e) => {
+                const v = e.target.value as RepeatUnit | "";
+                setRepeat(v);
+                if (v && endDate < addDays(startDate, 27)) setEndDate(yearEnd);
+              }}
+            >
+              <option value="">Nej — en sammanhängande period</option>
+              {(Object.keys(repeatUnitLabel) as RepeatUnit[]).map((u) => (
+                <option key={u} value={u}>
+                  {repeatUnitLabel[u]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="alloc-field">
             <div className="alloc-hours-head">
               <label className="meta-label" htmlFor="bp-hours">
-                {mode === "per_day" ? "Timmar per vardag" : "Timmar totalt"}
+                {repeat ? "Timmar per gång" : mode === "per_day" ? "Timmar per vardag" : "Timmar totalt"}
               </label>
-              <div className="alloc-unit-toggle" role="group" aria-label="Läge">
-                {(["per_day", "total"] as const).map((m) => (
-                  <button
-                    type="button"
-                    key={m}
-                    className={mode === m ? "on" : ""}
-                    onClick={() => setMode(m)}
-                    aria-pressed={mode === m}
-                    title={
-                      m === "per_day"
-                        ? "Samma antal timmar varje vardag i perioden"
-                        : "Summan fördelas jämnt över vardagarna i perioden"
-                    }
-                  >
-                    {hourAllocationModeLabel[m]}
-                  </button>
-                ))}
-              </div>
             </div>
             {isRange ? (
               <div className="belaggning-range-inputs">
                 <label>Lågt<input inputMode="decimal" value={lowDraft} placeholder="0" onChange={(e) => setLowDraft(e.target.value)} /></label>
-                <label>Troligt<input inputMode="decimal" value={likelyDraft} placeholder="0" onChange={(e) => setLikelyDraft(e.target.value)} /></label>
                 <label>Högt<input inputMode="decimal" value={highDraft} placeholder="0" onChange={(e) => setHighDraft(e.target.value)} /></label>
               </div>
             ) : (
               <div className="alloc-hours-wrap">
                 <input id="bp-hours" type="text" inputMode="decimal" className="panel-text-input" value={hoursDraft} placeholder="0" onChange={(e) => setHoursDraft(e.target.value)} onFocus={(e) => e.currentTarget.select()} />
-                <span className="alloc-hours-unit">{mode === "per_day" ? "h/dag" : "h"}</span>
+                <span className="alloc-hours-unit">{repeat ? "h/gång" : mode === "per_day" ? "h/dag" : "h"}</span>
               </div>
             )}
           </div>
 
           <div className="alloc-field-row">
             <div className="alloc-field">
-              <label className="meta-label">Startdatum</label>
+              <label className="meta-label">{repeat ? "Första tillfälle" : "Startdatum"}</label>
               <DatePicker
                 value={startDate}
                 onChange={(v) => {
@@ -436,7 +454,7 @@ export function BelaggningAllocPopover({
               />
             </div>
             <div className="alloc-field">
-              <label className="meta-label">Slutdatum</label>
+              <label className="meta-label">{repeat ? "Till och med" : "Slutdatum"}</label>
               <DatePicker
                 value={endDate}
                 onChange={setEndDate}
@@ -449,6 +467,8 @@ export function BelaggningAllocPopover({
           <div className="belaggning-preview" aria-live="polite">
             {!datesOk
               ? "Slutdatum måste vara samma som eller efter startdatum."
+              : repeat
+                ? `${occurrences} tillfälle${occurrences === 1 ? "" : "n"} ${repeatUnitLabel[repeat].toLowerCase()}${hoursOk ? ` · ${formatHoursSv(forecastHours)} h per gång · ${formatHoursSv(total)} h totalt` : ""}`
               : !hoursOk
                 ? `${weekdays} vardag${weekdays === 1 ? "" : "ar"} i perioden`
                 : isRange
@@ -500,7 +520,9 @@ export function BelaggningAllocPopover({
                         {row.customer} · {row.projectName}
                       </span>
                       <span className="belaggning-existing-meta">
-                        {row.allocation.estimateMode === "range"
+                        {row.allocation.repeat
+                          ? `${formatHoursSv(row.allocation.hours)} h ${repeatUnitLabel[row.allocation.repeat].toLowerCase()} (${formatHoursSv(allocationTotalHours(row.allocation))} h)`
+                          : row.allocation.estimateMode === "range"
                           ? `${formatHoursSv(row.allocation.lowHours ?? 0)}–${formatHoursSv(row.allocation.highHours ?? row.allocation.hours)} h (≈${formatHoursSv(row.allocation.hours)} h)`
                           : row.allocation.mode === "per_day"
                           ? `${formatHoursSv(row.allocation.hours)} h/dag (${formatHoursSv(allocationTotalHours(row.allocation))} h)`

@@ -8,6 +8,7 @@ import {
   type CapacityReservation,
   type CustomerData,
   type HourAllocation,
+  type RepeatUnit,
   type TeamMember,
 } from "@/lib/sections";
 import { expectedReserveHours } from "@/lib/capacity";
@@ -17,6 +18,7 @@ import {
   hoursPerWeekday,
   isWeekend,
   rangeFor,
+  recurrenceDates,
   TARGET_HOURS_PER_DAY,
   todayISO,
   type OccupancySource,
@@ -139,6 +141,7 @@ export default function BelaggningPersonerPage() {
     person: TeamMember;
     date?: string;
     editId?: string;
+    repeat?: RepeatUnit;
   } | null>(null);
   const [reservePopup, setReservePopup] = useState<ReserveRow | "new" | null>(null);
   const [createPopup, setCreatePopup] = useState<
@@ -368,6 +371,9 @@ export default function BelaggningPersonerPage() {
           <button type="button" className="btn btn-mute toolbar-btn" onClick={() => setCreatePopup({ kind: "project" })}>
             <Plus size={13} aria-hidden /> Projekt
           </button>
+          <button type="button" className="btn btn-mute toolbar-btn" onClick={() => setPopup({ person: DISPLAY_MEMBERS[0], repeat: "week" })} title="Samma antal timmar varje vecka eller månad">
+            <Plus size={13} aria-hidden /> Upprepade timmar
+          </button>
           <button type="button" className="btn toolbar-btn" onClick={() => setReservePopup("new")}>
             <Plus size={13} aria-hidden /> Reserv
           </button>
@@ -556,6 +562,30 @@ export default function BelaggningPersonerPage() {
                         </div>
                         <div className="bpp-cells bpp-cells-bars">
                           {lane.map((a) => {
+                            if (a.repeat) {
+                              // Upprepade timmar: ett litet block per tillfälle.
+                              return recurrenceDates(a, from, to).map((d) => {
+                                const c = colOf.get(d);
+                                if (c === undefined) return null;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={`${a.id}:${d}`}
+                                    className="bpp-bar is-repeat"
+                                    style={{
+                                      gridColumn: `${c + 1} / ${c + 2}`,
+                                      background: `${color}14`,
+                                      borderColor: `${color}80`,
+                                      ["--member-color" as string]: color,
+                                    }}
+                                    title={`${r.customer} · ${r.projectName}\n${formatHoursSv(a.hours)} h ${a.repeat === "week" ? "varje vecka" : "varje månad"} · ${a.startDate} – ${a.endDate}${a.comment ? `\n${a.comment}` : ""}`}
+                                    onClick={() => setPopup({ person: m, editId: a.id })}
+                                  >
+                                    <span className="bpp-bar-text">{formatHoursSv(a.hours)}h</span>
+                                  </button>
+                                );
+                              });
+                            }
                             const cols = colsFor(a);
                             if (!cols) return null;
                             const project = customers[r.customerSlug]?.projects.find((p) => p.id === r.projectId);
@@ -608,6 +638,7 @@ export default function BelaggningPersonerPage() {
           person={popup.person}
           initialDate={popup.date}
           editAllocationId={popup.editId}
+          initialRepeat={popup.repeat}
           customers={customers}
           onClose={() => setPopup(null)}
           onSave={(draft) => {
@@ -642,6 +673,7 @@ export default function BelaggningPersonerPage() {
       )}
       {createPopup && (
         <CreateCustomerProjectPopover
+          key={`${createPopup.kind}:${createPopup.kind === "project" ? createPopup.customerSlug ?? "" : ""}`}
           mode={createPopup.kind}
           customers={customers}
           initialCustomerSlug={createPopup.kind === "project" ? createPopup.customerSlug : undefined}
@@ -675,6 +707,11 @@ function CreateCustomerProjectPopover({ mode, customers, initialCustomerSlug, on
 }) {
   const slugs = Object.keys(customers).sort((a, b) => (customers[a].client || a).localeCompare(customers[b].client || b, "sv"));
   const [slug, setSlug] = useState(initialCustomerSlug ?? slugs[0] ?? "");
+  // Om den nyss skapade kunden inte hunnit in i listan vid första render:
+  // följ med när den dyker upp.
+  useEffect(() => {
+    if (initialCustomerSlug && customers[initialCustomerSlug]) setSlug(initialCustomerSlug);
+  }, [initialCustomerSlug, customers]);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);

@@ -335,7 +335,8 @@ function normalizeHourAllocations(raw: unknown): HourAllocation[] {
           : { estimateMode: "fixed" as const }),
         // Saknat läge = totalt: poster skapade innan `mode` fanns var alltid
         // totala timmar, och det är det säkra valet för handskriven JSON.
-        mode: v.mode === "per_day" ? "per_day" : "total",
+        mode: v.repeat ? "per_day" : v.mode === "per_day" ? "per_day" : "total",
+        ...(v.repeat === "week" || v.repeat === "month" ? { repeat: v.repeat } : {}),
         startDate,
         endDate,
         comment: typeof v.comment === "string" ? v.comment : "",

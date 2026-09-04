@@ -102,6 +102,53 @@ export function countWeekdays(from: string, to: string): number {
   return n;
 }
 
+// ---- Upprepade timmar ------------------------------------------------------
+
+/** Flyttar lördag/söndag till nästa måndag. */
+export function nextWeekday(iso: string): string {
+  const d = parseISO(iso);
+  if (!d) return iso;
+  const dow = d.getUTCDay();
+  if (dow === 6) return addDays(iso, 2);
+  if (dow === 0) return addDays(iso, 1);
+  return iso;
+}
+
+/**
+ * Datumen en upprepad allokering infaller på inom [from, to] (klippt mot
+ * allokeringens egen period). Vecka: var sjunde dag från startDate.
+ * Månad: samma dag i månaden; saknas dagen (31:a i en kort månad) används
+ * månadens sista dag. Helg flyttas alltid fram till nästa vardag.
+ */
+export function recurrenceDates(a: HourAllocation, from: string, to: string): string[] {
+  if (!a.repeat) return [];
+  const start = parseISO(a.startDate);
+  if (!start) return [];
+  const lo = a.startDate > from ? a.startDate : from;
+  const hi = a.endDate < to ? a.endDate : to;
+  const out: string[] = [];
+  const push = (iso: string) => {
+    const d = nextWeekday(iso);
+    if (d >= lo && d <= hi && d >= a.startDate && d <= a.endDate) out.push(d);
+  };
+  if (a.repeat === "week") {
+    for (let d = a.startDate; d <= hi; d = addDays(d, 7)) push(d);
+    return out;
+  }
+  const dom = start.getUTCDate();
+  let y = start.getUTCFullYear();
+  let m = start.getUTCMonth();
+  for (let guard = 0; guard < 240; guard++) {
+    const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    const candidate = toISO(new Date(Date.UTC(y, m, Math.min(dom, lastDay))));
+    if (candidate > hi) break;
+    push(candidate);
+    m += 1;
+    if (m > 11) { m = 0; y += 1; }
+  }
+  return out;
+}
+
 // ---- Planerad tid ----------------------------------------------------------
 
 /**
@@ -132,6 +179,10 @@ export function distributeAllocation(
   to: string,
 ): Map<string, number> {
   const out = new Map<string, number>();
+  if (a.repeat) {
+    if (a.hours > 0) for (const d of recurrenceDates(a, from, to)) out.set(d, a.hours);
+    return out;
+  }
   const perDay = hoursPerWeekday(a);
   if (perDay <= 0) return out;
   const spreadOverWeekends =
@@ -147,6 +198,7 @@ export function distributeAllocation(
 
 /** Totalt antal timmar en allokering motsvarar (oavsett läge). */
 export function allocationTotalHours(a: HourAllocation): number {
+  if (a.repeat) return a.hours * recurrenceDates(a, a.startDate, a.endDate).length;
   if (a.mode === "total") return a.hours;
   return a.hours * countWeekdays(a.startDate, a.endDate);
 }

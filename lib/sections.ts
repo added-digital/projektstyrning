@@ -541,6 +541,13 @@ export const hourAllocationModeLabel: Record<HourAllocationMode, string> = {
   total: "Totalt",
 };
 
+export type RepeatUnit = "week" | "month";
+
+export const repeatUnitLabel: Record<RepeatUnit, string> = {
+  week: "Varje vecka",
+  month: "Varje månad",
+};
+
 /**
  * Planerad tid för en person på ett projekt över ett datumintervall.
  * `mode` avgör om `hours` gäller per vardag eller totalt; helger räknas
@@ -560,6 +567,12 @@ export interface HourAllocation {
   likelyHours?: number;
   highHours?: number;
   mode: HourAllocationMode;
+  /**
+   * Upprepade timmar: `hours` gäller per tillfälle och infaller varje vecka
+   * (samma veckodag som startDate) eller varje månad (samma dag i månaden)
+   * från startDate till och med endDate. Helg flyttas till nästa vardag.
+   */
+  repeat?: RepeatUnit;
   /** ISO YYYY-MM-DD. */
   startDate: string;
   /** ISO YYYY-MM-DD (inklusive). */
